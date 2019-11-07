@@ -23,6 +23,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math/big"
+	"net"
 	"net/http"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 	werror "github.com/palantir/witchcraft-go-error"
 	"github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log"
 	"github.com/palantir/witchcraft-go-server/config"
+	"golang.org/x/net/netutil"
 )
 
 func (s *Server) newServer(productName string, serverConfig config.Server, handler http.Handler) (rHTTPServer *http.Server, rStart func() error, rShutdown func(context.Context) error, rErr error) {
@@ -78,6 +80,21 @@ func newServerStartShutdownFns(
 	return httpServer, func() error {
 		svcLogger.Info("Listening to https", svc1log.SafeParam("address", addr), svc1log.SafeParam("server", serverName))
 
+		if serverConfig.LimitListener > 0 {
+			l, err := net.Listen("tcp", addr)
+			if err != nil {
+				return werror.Wrap(err, "failed to create listener for server", werror.SafeParam("serverName", serverName))
+			}
+			ll := netutil.LimitListener(l, serverConfig.LimitListener)
+			if err := httpServer.ServeTLS(ll, "", ""); err != nil {
+				if err == http.ErrServerClosed {
+					svcLogger.Info(fmt.Sprintf("%s was closed", serverName))
+					return nil
+				}
+				return werror.Wrap(err, "server failed", werror.SafeParam("serverName", serverName))
+			}
+			return nil
+		}
 		// cert and key specified in TLS config so no need to pass in here
 		if err := httpServer.ListenAndServeTLS("", ""); err != nil {
 			if err == http.ErrServerClosed {

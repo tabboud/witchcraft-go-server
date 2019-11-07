@@ -217,6 +217,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:cdc5b9609cc79914c06599e54de510eddd6e58bb69e555f19f2013fb38b859b1"
+  name = "golang.org/x/net"
+  packages = ["netutil"]
+  pruneopts = "UT"
+  revision = "a882066a44e04a21d46e51451c71e131344e830e"
+
+[[projects]]
+  branch = "master"
   digest = "1:8775d8a768d9e65e8b659172804aac5db1fc8d563ba766470a6c2698c57c61a7"
   name = "golang.org/x/sys"
   packages = ["unix"]
@@ -282,6 +290,7 @@
     "github.com/palantir/witchcraft-go-tracing/wzipkin",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
+    "golang.org/x/net/netutil",
     "gopkg.in/fsnotify.v1",
     "gopkg.in/natefinch/lumberjack.v2",
     "gopkg.in/yaml.v2",

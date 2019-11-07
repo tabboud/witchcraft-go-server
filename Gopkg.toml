@@ -33,6 +33,10 @@
   source = "https://github.com/fsnotify/fsnotify.git"
 
 [[constraint]]
+  name = "golang.org/x/net"
+  branch = "master"
+
+[[constraint]]
   name = "github.com/palantir/witchcraft-go-logging"
   version = "v1.4.0"
 

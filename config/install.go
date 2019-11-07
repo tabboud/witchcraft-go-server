@@ -37,4 +37,5 @@ type Server struct {
 	ClientCAFiles  []string `yaml:"client-ca-files,omitempty"`
 	CertFile       string   `yaml:"cert-file,omitempty"`
 	KeyFile        string   `yaml:"key-file,omitempty"`
+	LimitListener  int      `yaml:"limit-listener,omitempty"`
 }
