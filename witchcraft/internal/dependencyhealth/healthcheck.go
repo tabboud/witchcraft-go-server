@@ -17,6 +17,7 @@ package dependencyhealth
 import (
 	"context"
 	"errors"
+	"github.com/palantir/witchcraft-go-server/v2/status"
 	"net"
 	"net/http"
 	"sort"
@@ -50,6 +51,11 @@ type ServiceDependencyHealthCheck struct {
 // No (known) support exists for merging multiple service dependency checks.
 func NewServiceDependencyHealthCheck() *ServiceDependencyHealthCheck {
 	return &ServiceDependencyHealthCheck{hosts: NewHostRegistry(5 * time.Minute)}
+}
+func NewServiceDependencyHealthCheckWithRegistry(registry status.HealthCheckRegistry) *ServiceDependencyHealthCheck {
+	check := &ServiceDependencyHealthCheck{hosts: NewHostRegistry(5 * time.Minute)}
+	registry.Register(status.HealthCheckKey(serviceDependencyCheckType), check)
+	return check
 }
 
 func (h *ServiceDependencyHealthCheck) Middleware(serviceName string) httpclient.Middleware {

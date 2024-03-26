@@ -248,6 +248,9 @@ type InitInfo struct {
 	// When the InitFunc is executed, the server is not yet started. This will most often be useful if launching a goroutine which
 	// requires access to shutdown the server in some error condition.
 	ShutdownServer func(context.Context) error
+
+	// HealthCheckRegistry contains all health checks for the server and allows consumers to register new ones.
+	HealthCheckRegistry status.HealthCheckRegistry
 }
 
 // ConfigurableRouter is a wrouter.Router that provides additional support for configuring things such as health,
@@ -642,12 +645,16 @@ func (s *Server) Start() (rErr error) {
 	if err != nil {
 		return err
 	}
-	internalHealthCheckSources := []healthstatus.HealthCheckSource{configReloadHealthCheckSource}
+
+	healthCheckRegistry := status.NewHealthCheckSourceRegistry()
+	healthCheckRegistry.Register("configReload", configReloadHealthCheckSource)
+	//internalHealthCheckSources := []healthstatus.HealthCheckSource{configReloadHealthCheckSource}
 
 	// set up SERVICE_DEPENDENCY check
 	if !s.disableServiceDependencyHealth {
-		s.serviceDependencyHealthCheck = dependencyhealth.NewServiceDependencyHealthCheck()
-		internalHealthCheckSources = append(internalHealthCheckSources, s.serviceDependencyHealthCheck)
+		s.serviceDependencyHealthCheck = dependencyhealth.NewServiceDependencyHealthCheckWithRegistry(healthCheckRegistry)
+		healthCheckRegistry.Register("serviceDependency", s.serviceDependencyHealthCheck)
+		//internalHealthCheckSources = append(internalHealthCheckSources, s.serviceDependencyHealthCheck)
 	}
 
 	// Set the service log level if configured
@@ -717,10 +724,11 @@ func (s *Server) Start() (rErr error) {
 					Router: newMultiRouterImpl(router, mgmtRouter),
 					Server: s,
 				},
-				InstallConfig:  fullInstallCfg,
-				RuntimeConfig:  refreshableRuntimeCfg,
-				Clients:        discovery,
-				ShutdownServer: s.Shutdown,
+				InstallConfig:       fullInstallCfg,
+				RuntimeConfig:       refreshableRuntimeCfg,
+				Clients:             discovery,
+				ShutdownServer:      s.Shutdown,
+				HealthCheckRegistry: healthCheckRegistry,
 			},
 		)
 		if err != nil {
@@ -732,11 +740,11 @@ func (s *Server) Start() (rErr error) {
 	}
 
 	// add all internally defined health check sources to the user supplied ones after running the initFn.
-	s.healthCheckSources = append(s.healthCheckSources, internalHealthCheckSources...)
+	//s.healthCheckSources = append(s.healthCheckSources, internalHealthCheckSources...)
 
 	// add routes for health, liveness and readiness. Must be done after initFn to ensure that any
 	// health/liveness/readiness configuration updated by initFn is applied.
-	if err := s.addRoutes(ctx, mgmtRouter, baseRefreshableRuntimeCfg); err != nil {
+	if err := s.addRoutes(ctx, mgmtRouter, baseRefreshableRuntimeCfg, healthCheckRegistry); err != nil {
 		return err
 	}
 

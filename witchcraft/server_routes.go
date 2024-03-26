@@ -17,6 +17,7 @@ package witchcraft
 import (
 	"context"
 	"fmt"
+	"github.com/palantir/witchcraft-go-server/v2/status"
 	"net/http"
 	netpprof "net/http/pprof"
 	"runtime/pprof"
@@ -26,7 +27,6 @@ import (
 	"github.com/palantir/pkg/metrics"
 	"github.com/palantir/pkg/refreshable"
 	werror "github.com/palantir/witchcraft-go-error"
-	healthstatus "github.com/palantir/witchcraft-go-health/status"
 	"github.com/palantir/witchcraft-go-server/v2/config"
 	"github.com/palantir/witchcraft-go-server/v2/status/routes"
 	"github.com/palantir/witchcraft-go-server/v2/witchcraft/internal/middleware"
@@ -47,7 +47,7 @@ func (s *Server) initRouters(installCfg config.Install) (rRouter wrouter.Router,
 }
 
 // addRoutes registers /debug/diagnostic/* and /status/*
-func (s *Server) addRoutes(ctx context.Context, mgmtRouterWithContextPath wrouter.Router, runtimeCfg config.RefreshableRuntime) error {
+func (s *Server) addRoutes(ctx context.Context, mgmtRouterWithContextPath wrouter.Router, runtimeCfg config.RefreshableRuntime, registry status.HealthCheckRegistry) error {
 	secretRefreshable, err := getSecretRefreshable(ctx, runtimeCfg.DiagnosticsConfig())
 	if err != nil {
 		return err
@@ -57,11 +57,13 @@ func (s *Server) addRoutes(ctx context.Context, mgmtRouterWithContextPath wroute
 	}
 
 	statusResource := wresource.New("status", mgmtRouterWithContextPath)
+	registry.Register("stateManager", &s.stateManager)
 
+	// TDA: Health, liveness, and readiness route registration
 	// add health endpoints
 	if err := routes.AddHealthRoutes(
 		statusResource,
-		healthstatus.NewCombinedHealthCheckSource(append(s.healthCheckSources, &s.stateManager)...),
+		registry, // healthstatus.NewCombinedHealthCheckSource(append(s.healthCheckSources, &s.stateManager)...),
 		runtimeCfg.HealthChecks().SharedSecret(),
 		s.healthStatusChangeHandlers,
 	); err != nil {
